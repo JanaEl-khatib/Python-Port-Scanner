@@ -1,11 +1,17 @@
 # Text Processing, search for and manipulate text based on patterns
 # Regular Expression uses a search pattern to find a string or set of strings
+import hashlib
 import re
+import requests
 
 # Check Password Strength Function
 def check_password_strength(password):
     """Evaluates the strength of a given password."""
-
+     
+    # Hash the password when given:
+    print("\n--- Hashing Password ---")
+    hashed_password = hashlib.sha256(password.encode()).hexdigest()
+    print(f"SHA-256 Hashed Password: {hashed_password}")
     # Using score to keep track of the password strength
     score = 0
     # Give feedback to the user password whether it strong or not
@@ -80,11 +86,48 @@ def check_password_strength(password):
     for item in feedback:
         print(f"-{item}")
 
+    print("\n--- Breach Check ---")
+    # Call the Function
+    check_pwned(password)
+
+# Check Password in Have I Been Pwned API Function
+def check_pwned(password):
+    """ Check if the password has been exposed in a known data breach."""
+    
+    # Hash the password using SHA-1 (HIBP (Have I Been Pwned) requires SHA-1)
+    sha1pwd = hashlib.sha1(password.encode()).hexdigest().upper()
+
+    # Split the hash into prefix (first 5 characters) and suffix (rest)
+    # Allows for anonymity (k-anonymity model)
+    prefix, suffix = sha1pwd[:5], sha1pwd[5:]
+
+    # Query the HIBP API with only the prefix
+    url = f"https://api.pwnedpasswords.com/range/{prefix}"
+    response = requests.get(url)
+
+    # Handle API response errors
+    if response.status_code != 200:
+        print("Could not reach HIBP API. Try again later.")
+        return
+    
+    # Parse the response
+    # Each line contains a has suffix and how many times it appeared in breaches
+    hashes = (line.split(':') for line in response.text.splitlines())
+
+    # Check if the suffix of our hashed password is in the results
+    for h, count in hashes:
+        if h == suffix:
+            print(f"This password has been found in {count} data breaches!")
+            return # Stop checking if found
+    
+    # Safe password if suffix is not found
+    print("This password has not been found in known data breaches.")
+
 # Main Function
 def main():
     # While loop, ask user for their password
     while True:
-        password = input("\Enter a password to check (or 'quit' to exit): ")
+        password = input("\nEnter a password to check (or 'quit' to exit): ")
         # Check if they typed quit (QUIT -> quit)
         if password.lower() == 'quit':
             break
